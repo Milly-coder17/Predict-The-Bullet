@@ -44,6 +44,7 @@ typedef enum {
 #define BLOCK_FRAMES 10
 #define DEFLECT_FRAMES 13
 #define DEFLECTHIT_FRAMES 16
+#define INTRO_FRAMES 48
 
 
 typedef struct{
@@ -148,7 +149,7 @@ int main(int argc, char *argv[]){
     InitWindow(1280, 720, "Predict The Bullet - Server");
     SetTargetFPS(60);
     InitAudioDevice();
-    Music music = LoadMusicStream("assets/music.ogg");
+    Music music = LoadMusicStream("assets/music.wav");
     SetMusicVolume(music, 0.6f);
     PlayMusicStream(music);
 
@@ -241,6 +242,28 @@ int main(int argc, char *argv[]){
         player2DeflectHitFrames[i] = LoadTexture(TextFormat("assets/player2DeflectHit/deflecthitframe%d.png", i + 1));
     }
 
+    Texture2D introFrames[INTRO_FRAMES];
+    for (int i = 0; i < INTRO_FRAMES; i++) {
+        introFrames[i] = LoadTexture(TextFormat("assets/battleIntro/battleintroframe%d.png", i + 1));
+    }
+
+    int introFrame = 0;
+    float introTimer = 0.0f;
+    const float INTRO_FRAME_DURATION = 0.05f;
+
+    while (introFrame < INTRO_FRAMES) {
+        UpdateMusicStream(music);
+        BeginDrawing();
+        ClearBackground(BLACK);
+        DrawTextureEx(introFrames[introFrame], (Vector2){0, 0}, 0.0f, (float)GetScreenWidth() / 1280.0f, WHITE);
+        introTimer += GetFrameTime();
+        if (introTimer >= INTRO_FRAME_DURATION) {
+            introTimer = 0.0f;
+            introFrame++;
+        }
+        EndDrawing();
+    }
+
     bool gameOver = true;
     while(gameOver){
         UpdateMusicStream(music);
@@ -311,7 +334,7 @@ int main(int argc, char *argv[]){
                 "Block",
                 "Deflect",
                 "Special (Cancel Turn)",
-                "Special (Double Shot)"
+                "Double Shot"
             };
 
             int boxW = 760;
@@ -833,6 +856,9 @@ int main(int argc, char *argv[]){
     }
     for (int i = 0; i < LOADANDHIT_FRAMES; i++) {
         UnloadTexture(player2LoadAndHitFrames[i]);
+    }
+    for (int i = 0; i < INTRO_FRAMES; i++) {
+        UnloadTexture(introFrames[i]);
     }
     CloseAudioDevice();
     CloseWindow();
