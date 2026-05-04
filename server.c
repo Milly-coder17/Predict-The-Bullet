@@ -44,6 +44,9 @@ typedef enum {
 #define BLOCK_FRAMES 10
 #define DEFLECT_FRAMES 13
 #define DEFLECTHIT_FRAMES 16
+#define SHOOTANDSHOT_FRAMES 20
+#define BLOCKANDSHOT_FRAMES 16
+#define DEFLECTANDSHOT_FRAMES 18
 #define INTRO_FRAMES 48
 
 
@@ -177,6 +180,7 @@ int main(int argc, char *argv[]){
     Sound blockSound = LoadSound("assets/block.wav");
     Sound deflectSound = LoadSound("assets/deflect.wav");
     Sound loadSound = LoadSound("assets/load.wav");
+    Sound doubleShotSound = LoadSound("assets/doubleshot.wav");
     SetSoundVolume(blockSound, 2.0f);
     SetSoundVolume(deflectSound, 2.0f);
 
@@ -208,6 +212,21 @@ int main(int argc, char *argv[]){
     Texture2D player1DeflectHitFrames[DEFLECTHIT_FRAMES];
     for (int i = 0; i < DEFLECTHIT_FRAMES; i++) {
         player1DeflectHitFrames[i] = LoadTexture(TextFormat("assets/player1DeflectHit/deflecthitframe%d.png", i + 1));
+    }
+
+    Texture2D player1ShootAndShotFrames[SHOOTANDSHOT_FRAMES];
+    for (int i = 0; i < SHOOTANDSHOT_FRAMES; i++) {
+        player1ShootAndShotFrames[i] = LoadTexture(TextFormat("assets/player1ShootAndShot/shootandshotframe%d.png", i + 1));
+    }
+
+    Texture2D player1BlockAndShotFrames[BLOCKANDSHOT_FRAMES];
+    for (int i = 0; i < BLOCKANDSHOT_FRAMES; i++) {
+        player1BlockAndShotFrames[i] = LoadTexture(TextFormat("assets/player1BlockAndShot/blockandshotframe%d.png", i + 1));
+    }
+
+    Texture2D player1DeflectAndShotFrames[DEFLECTANDSHOT_FRAMES];
+    for (int i = 0; i < DEFLECTANDSHOT_FRAMES; i++) {
+        player1DeflectAndShotFrames[i] = LoadTexture(TextFormat("assets/player1DeflectAndShot/deflectandshotframe%d.png", i + 1));
     }
 
 
@@ -469,10 +488,19 @@ int main(int argc, char *argv[]){
                     memcpy(&temp, wait_buf, sizeof(int));
                     player2move = temp;
                     wait_total = 0;
-                    animFrame = 0;
-                    animTimer = 0.0f;
-                    holdTimer = 0;
-                    gameState = STATE_ANIMATE;
+                    bool hasDoubleAnim =
+                        (player1move == 6 && player2move == 4) ||
+                        (player1move == 4 && player2move == 6) ||
+                        (player1move == 3 && player2move == 6);
+                    if (player1move == 5 || player2move == 5 ||
+                        ((player1move == 6 || player2move == 6) && !hasDoubleAnim)) {
+                        gameState = STATE_RESOLVE;
+                    } else {
+                        animFrame = 0;
+                        animTimer = 0.0f;
+                        holdTimer = 0;
+                        gameState = STATE_ANIMATE;
+                    }
                 }
             } else if (bytes == 0) {
                 die_with_error("Error: client disconnected.");
@@ -488,10 +516,10 @@ int main(int argc, char *argv[]){
                 animTimer = 0.0f;
                 bool shouldHold =
                     (player1move == 1 && player2move == 1 && animFrame >= 4) ||
-                    (player1move == 3 && player2move != 1 && animFrame >= 3) ||
-                    (player1move == 4 && player2move != 1 && animFrame >= 4) ||
-                    (player2move == 3 && player1move != 1 && animFrame >= 3) ||
-                    (player2move == 4 && player1move != 1 && animFrame >= 4);
+                    (player1move == 3 && player2move != 1 && player2move != 5 && player2move != 6 && animFrame >= 3) ||
+                    (player1move == 4 && player2move != 1 && player2move != 5 && player2move != 6 && animFrame >= 4) ||
+                    (player2move == 3 && player1move != 1 && player1move != 5 && player1move != 6 && animFrame >= 3) ||
+                    (player2move == 4 && player1move != 1 && player1move != 5 && player1move != 6 && animFrame >= 4);
                 if (shouldHold) {
                     holdTimer++;
                 } else {
@@ -522,24 +550,53 @@ int main(int argc, char *argv[]){
                     PlaySound(loadSound);
                 }
             }
+            
+            if (animFrame == 5 && (player1move == 6 || player2move == 6)) {
+                if (!IsSoundPlaying(doubleShotSound)) {
+                    PlaySound(doubleShotSound);
+                }
+            }
 
             int p1TotalFrames = 0;
-            if (player1move == 3) p1TotalFrames = BLOCK_FRAMES;
+            if      (player1move == 6 && player2move == 4) p1TotalFrames = SHOOTANDSHOT_FRAMES;
+            else if (player1move == 3 && player2move == 6) p1TotalFrames = BLOCKANDSHOT_FRAMES;
+            else if (player1move == 4 && player2move == 6) p1TotalFrames = DEFLECTANDSHOT_FRAMES;
+            else if (player1move == 3) p1TotalFrames = BLOCK_FRAMES;
             else if (player1move == 4) p1TotalFrames = DEFLECT_FRAMES;
             else if (player1move == 1 && player2move != 4) p1TotalFrames = SHOOT_FRAMES;
-            else if (player1move == 2  && player2move != 1) p1TotalFrames = LOAD_FRAMES;
+            else if (player1move == 2 && player2move != 1) p1TotalFrames = LOAD_FRAMES;
             else if (player1move == 2 && player2move == 1) p1TotalFrames = LOADANDHIT_FRAMES;
             else if (player1move == 1 && player2move == 4) p1TotalFrames = DEFLECTHIT_FRAMES;
 
             int p1Frame = animFrame;
             if (p1TotalFrames > 0 && p1Frame >= p1TotalFrames) p1Frame = p1TotalFrames - 1;
 
-            if (player1move == 1 && player2move != 4) {
+            if (player1move == 6 && player2move == 4) {
+                DrawTextureEx(player1ShootAndShotFrames[p1Frame],
+                              (Vector2){p1X, p1Y},
+                              2.0f, bgScale * 4.0f, WHITE);
+            } else if (player1move == 3 && player2move == 6) {
+                DrawTextureEx(player1BlockAndShotFrames[p1Frame],
+                              (Vector2){p1X, p1Y},
+                              2.0f, bgScale * 4.0f, WHITE);
+            } else if (player1move == 4 && player2move == 6) {
+                DrawTextureEx(player1DeflectAndShotFrames[p1Frame],
+                              (Vector2){p1X, p1Y},
+                              2.0f, bgScale * 4.0f, WHITE);
+            } else if (player1move == 1 && player2move != 4) {
                 DrawTextureEx(player1ShootFrames[p1Frame],
+                              (Vector2){p1X, p1Y},
+                              2.0f, bgScale * 4.0f, WHITE);
+            } else if (player1move == 2 && player2move == 1) {
+                DrawTextureEx(player1LoadAndHitFrames[p1Frame],
                               (Vector2){p1X, p1Y},
                               2.0f, bgScale * 4.0f, WHITE);
             } else if (player1move == 2 && player2move != 1) {
                 DrawTextureEx(player1LoadFrames[p1Frame],
+                              (Vector2){p1X, p1Y},
+                              2.0f, bgScale * 4.0f, WHITE);
+            } else if (player1move == 1 && player2move == 4) {
+                DrawTextureEx(player1DeflectHitFrames[p1Frame],
                               (Vector2){p1X, p1Y},
                               2.0f, bgScale * 4.0f, WHITE);
             } else if (player1move == 3) {
@@ -548,14 +605,6 @@ int main(int argc, char *argv[]){
                               2.0f, bgScale * 4.0f, WHITE);
             } else if (player1move == 4) {
                 DrawTextureEx(player1DeflectFrames[p1Frame],
-                              (Vector2){p1X, p1Y},
-                              2.0f, bgScale * 4.0f, WHITE);
-            } else if (player1move == 2 && player2move == 1) {
-                DrawTextureEx(player1LoadAndHitFrames[p1Frame],
-                              (Vector2){p1X, p1Y},
-                              2.0f, bgScale * 4.0f, WHITE);
-            } else if (player1move == 1 && player2move == 4) {
-                DrawTextureEx(player1DeflectHitFrames[p1Frame],
                               (Vector2){p1X, p1Y},
                               2.0f, bgScale * 4.0f, WHITE);
             } else {
@@ -605,10 +654,10 @@ int main(int argc, char *argv[]){
 
             bool isHoldCase =
                 (player1move == 1 && player2move == 1) ||
-                (player1move == 3 && player2move != 1) ||
-                (player1move == 4 && player2move != 1) ||
-                (player2move == 3 && player1move != 1) ||
-                (player2move == 4 && player1move != 1);
+                (player1move == 3 && player2move != 1 && player2move != 5 && player2move != 6) ||
+                (player1move == 4 && player2move != 1 && player2move != 5 && player2move != 6) ||
+                (player2move == 3 && player1move != 1 && player1move != 5 && player1move != 6) ||
+                (player2move == 4 && player1move != 1 && player1move != 5 && player1move != 6);
 
             if (isHoldCase) {
                 if (holdTimer >= 6) {
@@ -842,6 +891,15 @@ int main(int argc, char *argv[]){
     for (int i = 0; i < LOADANDHIT_FRAMES; i++) {
         UnloadTexture(player1LoadAndHitFrames[i]);
     }
+    for (int i = 0; i < SHOOTANDSHOT_FRAMES; i++) {
+        UnloadTexture(player1ShootAndShotFrames[i]);
+    }
+    for (int i = 0; i < BLOCKANDSHOT_FRAMES; i++) {
+        UnloadTexture(player1BlockAndShotFrames[i]);
+    }
+    for (int i = 0; i < DEFLECTANDSHOT_FRAMES; i++) {
+        UnloadTexture(player1DeflectAndShotFrames[i]);
+    }
     for (int i = 0; i < DEFLECT_FRAMES; i++) {
         UnloadTexture(player2DeflectFrames[i]);
     }
@@ -860,6 +918,7 @@ int main(int argc, char *argv[]){
     for (int i = 0; i < INTRO_FRAMES; i++) {
         UnloadTexture(introFrames[i]);
     }
+
     CloseAudioDevice();
     CloseWindow();
     printf("Closing connection ...\n");
