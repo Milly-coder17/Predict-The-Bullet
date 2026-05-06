@@ -157,7 +157,8 @@ int main(int argc, char *argv[]){
     player1.canDeflect = true;
     player2.health = 5;
 
-    InitWindow(1280, 720, "Predict The Bullet - Server");
+    InitWindow(1920, 1080, "Predict The Bullet - Server");
+    ToggleFullscreen();
     SetTargetFPS(60);
     InitAudioDevice();
     Music music = LoadMusicStream("assets/music.wav");
@@ -372,10 +373,12 @@ int main(int argc, char *argv[]){
             int heartH = (int)(heartTex.height * heartScale);
             int heartW = (int)(heartTex.width  * heartScale);
             int heartY = (int)(50 * bgScale) + titleSize;
-            for (int i = 0; i < player1.health; i++) {
+            int maxP1Health = 5;
+            for (int i = 0; i < maxP1Health; i++) {
                 int x = uiX + i * (heartW + iconSpacing);
+                Color tint = (i < player1.health) ? WHITE : Fade(WHITE, 0.25f);
                 DrawTextureEx(heartTex, (Vector2){x, heartY},
-                              0.0f, heartScale, WHITE);
+                              0.0f, heartScale, tint);
             }
 
             int   iconTargetH  = heartH;
@@ -417,7 +420,7 @@ int main(int argc, char *argv[]){
                 int p2HeartsStartX = GetScreenWidth() - p2RightMargin - totalHeartsW;
                 for (int i = 0; i < maxP2Health; i++) {
                     int hx = p2HeartsStartX + i * (heartW + iconSpacing);
-                    Color tint = (i < player2.health) ? WHITE : Fade(WHITE, 0.25f);
+                    Color tint = (i < (maxP2Health - player2.health)) ? Fade(WHITE, 0.25f) : WHITE;
                     DrawTextureEx(heartTex, (Vector2){hx, p2HeartY},
                                   0.0f, heartScale, tint);
                 }
@@ -625,33 +628,23 @@ int main(int argc, char *argv[]){
             }
 
             if (animFrame == 5 && (player1move == 1 || player2move == 1)) {
-                if (!IsSoundPlaying(shootSound)) {
-                    PlaySound(shootSound);
-                }
+                PlaySound(shootSound);
             }
 
             if (animFrame == 6 && ((player1move == 1 && player2move == 3) || (player1move == 3 && player2move == 1))) {
-                if (!IsSoundPlaying(blockSound)) {
-                    PlaySound(blockSound);
-                }
+                PlaySound(blockSound);
             }
 
             if (animFrame == 6 && ((player1move == 1 && player2move == 4) || (player1move == 4 && player2move == 1))) {
-                if (!IsSoundPlaying(deflectSound)) {
-                    PlaySound(deflectSound);
-                }
+                PlaySound(deflectSound);
             }
 
             if (animFrame == 5 && (player1move == 2 || player2move == 2)) {
-                if (!IsSoundPlaying(loadSound)) {
-                    PlaySound(loadSound);
-                }
+                PlaySound(loadSound);
             }
 
             if (animFrame == 5 && (player1move == 6 || player2move == 6)) {
-                if (!IsSoundPlaying(doubleShotSound)) {
-                    PlaySound(doubleShotSound);
-                }
+                PlaySound(doubleShotSound);
             }
 
             int p1TotalFrames = 0;
