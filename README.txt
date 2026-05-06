@@ -1,4 +1,4 @@
-When running the files:
+When running server.c:
 gcc server.c -o server -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 
 cd "/mnt/c/Users/Emil Panganiban/OneDrive/Desktop/School Projects/Predict The Bullet/Raylib Version"
