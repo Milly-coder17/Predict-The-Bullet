@@ -53,6 +53,7 @@ typedef enum {
 #define DOUBLESHOT_FRAMES 12
 #define INTRO_FRAMES 48
 #define CANCEL_FRAMES 19
+#define HIT_FRAMES 14
 
 
 typedef struct{
@@ -152,6 +153,8 @@ int main(int argc, char *argv[]){
     player1.health = 5;
     player1.energy = 2;
     player1.bullet = 1;
+    player1.canBlock = true;
+    player1.canDeflect = true;
     player2.health = 5;
 
     InitWindow(1280, 720, "Predict The Bullet - Server");
@@ -181,6 +184,8 @@ int main(int argc, char *argv[]){
     Texture2D heartTex   = LoadTexture("assets/heart.png");
     Texture2D energyTex  = LoadTexture("assets/energy.png");
     Texture2D bulletTex  = LoadTexture("assets/bullet.png");
+    Texture2D youWinTex  = LoadTexture("assets/youwin.png");
+    Texture2D youLostTex = LoadTexture("assets/youlost.png");
     SetTextureFilter(heartTex,  TEXTURE_FILTER_POINT);
     SetTextureFilter(energyTex, TEXTURE_FILTER_POINT);
     SetTextureFilter(bulletTex, TEXTURE_FILTER_POINT);
@@ -190,6 +195,8 @@ int main(int argc, char *argv[]){
     Sound loadSound = LoadSound("assets/load.wav");
     Sound doubleShotSound = LoadSound("assets/doubleshot.wav");
     Sound cancelSound = LoadSound("assets/cancel.wav");
+    Sound winnerSound = LoadSound("assets/winnersound.wav");
+    Sound loserSound = LoadSound("assets/losersound.wav");
     SetSoundVolume(blockSound, 2.0f);
     SetSoundVolume(deflectSound, 2.0f);
 
@@ -295,6 +302,16 @@ int main(int argc, char *argv[]){
         player2DeflectAndShotFrames[i] = LoadTexture(TextFormat("assets/player2DeflectAndShot/deflectandshotframe%d.png", i + 1));
     }
 
+    Texture2D player1HitFrames[HIT_FRAMES];
+    for (int i = 0; i < HIT_FRAMES; i++) {
+        player1HitFrames[i] = LoadTexture(TextFormat("assets/player1Hit/hitframe%d.png", i + 1));
+    }
+
+    Texture2D player2HitFrames[HIT_FRAMES];
+    for (int i = 0; i < HIT_FRAMES; i++) {
+        player2HitFrames[i] = LoadTexture(TextFormat("assets/player2Hit/hitframe%d.png", i + 1));
+    }
+
     Texture2D cancelFrames[CANCEL_FRAMES];
     for (int i = 0; i < CANCEL_FRAMES; i++) {
         cancelFrames[i] = LoadTexture(TextFormat("assets/cancelAnimation/cancelanimationframe%d.png", i + 1));
@@ -386,6 +403,26 @@ int main(int argc, char *argv[]){
                               0.0f, bulletScale, tint);
             }
 
+            // Player 2 health (right side)
+            {
+                int p2RightMargin = (int)(40 * bgScale);
+                const char *p2Title = "Player 2 Health";
+                int p2TitleW = MeasureText(p2Title, titleSize);
+                int p2TitleX = GetScreenWidth() - p2RightMargin - p2TitleW;
+                DrawText(p2Title, p2TitleX, (int)(10 * bgScale), titleSize, WHITE);
+
+                int p2HeartY = (int)(50 * bgScale) + titleSize;
+                int maxP2Health = 5;
+                int totalHeartsW = maxP2Health * heartW + (maxP2Health - 1) * iconSpacing;
+                int p2HeartsStartX = GetScreenWidth() - p2RightMargin - totalHeartsW;
+                for (int i = 0; i < maxP2Health; i++) {
+                    int hx = p2HeartsStartX + i * (heartW + iconSpacing);
+                    Color tint = (i < player2.health) ? WHITE : Fade(WHITE, 0.25f);
+                    DrawTextureEx(heartTex, (Vector2){hx, p2HeartY},
+                                  0.0f, heartScale, tint);
+                }
+            }
+
             const char *moves[] = {
                 "Shoot",
                 "Load",
@@ -429,10 +466,11 @@ int main(int argc, char *argv[]){
                 int cellCx = boxX + c * cellW + cellW / 2;
                 int cellCy = gridTopY + r * cellH + cellH / 2;
 
+                bool onCooldown = (i == 2 && !player1.canBlock) || (i == 3 && !player1.canDeflect);
                 const char *label = (i == selectedIndex)
                     ? TextFormat("> %s <", moves[i])
-                    : moves[i];
-                Color color = (i == selectedIndex) ? YELLOW : WHITE;
+                    : onCooldown ? TextFormat("%s (cooldown)", moves[i]) : moves[i];
+                Color color = (i == selectedIndex) ? YELLOW : onCooldown ? GRAY : WHITE;
 
                 int tw = MeasureText(label, moveFontSize);
                 DrawText(label,
@@ -476,9 +514,19 @@ int main(int argc, char *argv[]){
                     inputMessage = "Not enough energy to block.";
                     inputMessageColor = RED;
                 }
+                else if (chosenMove == 3 && !player1.canBlock)
+                {
+                    inputMessage = "Block is on cooldown!";
+                    inputMessageColor = RED;
+                }
                 else if (chosenMove == 4 && player1.energy < 3)
                 {
                     inputMessage = "Not enough energy to deflect.";
+                    inputMessageColor = RED;
+                }
+                else if (chosenMove == 4 && !player1.canDeflect)
+                {
+                    inputMessage = "Deflect is on cooldown!";
                     inputMessageColor = RED;
                 }
                 else if (chosenMove == 5 && player1.energy < 5)
@@ -604,7 +652,8 @@ int main(int argc, char *argv[]){
             }
 
             int p1TotalFrames = 0;
-            if      (cancelMode == 2 && (player2move == 1 || player2move == 6)) p1TotalFrames = 9;
+            if      (cancelMode == 2 && player2move == 1) p1TotalFrames = HIT_FRAMES;
+            else if (cancelMode == 2 && player2move == 6) p1TotalFrames = 9;
             else if (player1move == 6 && player2move == 4) p1TotalFrames = SHOOTANDSHOT_FRAMES;
             else if (player1move == 3 && player2move == 6) p1TotalFrames = BLOCKANDSHOT_FRAMES;
             else if (player1move == 4 && player2move == 6) p1TotalFrames = DEFLECTANDSHOT_FRAMES;
@@ -612,6 +661,7 @@ int main(int argc, char *argv[]){
             else if (player1move == 3) p1TotalFrames = BLOCK_FRAMES;
             else if (player1move == 4) p1TotalFrames = DEFLECT_FRAMES;
             else if (player1move == 1 && player2move != 4) p1TotalFrames = SHOOT_FRAMES;
+            else if (player1move == 2 && player2move == 6) p1TotalFrames = LOADANDHIT_FRAMES;
             else if (player1move == 2 && player2move != 1) p1TotalFrames = LOAD_FRAMES;
             else if (player1move == 2 && player2move == 1) p1TotalFrames = LOADANDHIT_FRAMES;
             else if (player1move == 1 && player2move == 4) p1TotalFrames = DEFLECTHIT_FRAMES;
@@ -619,7 +669,13 @@ int main(int argc, char *argv[]){
             int p1Frame = animFrame;
             if (p1TotalFrames > 0 && p1Frame >= p1TotalFrames) p1Frame = p1TotalFrames - 1;
 
-            if (cancelMode == 2 && (player2move == 1 || player2move == 6)) {
+            if (cancelMode == 2 && player2move == 1) {
+                int hf = p1Frame;
+                if (hf >= HIT_FRAMES) hf = HIT_FRAMES - 1;
+                DrawTextureEx(player1HitFrames[hf],
+                              (Vector2){p1X, p1Y},
+                              2.0f, bgScale * 4.0f, WHITE);
+            } else if (cancelMode == 2 && player2move == 6) {
                 int hitFrame = p1Frame + 5;
                 if (hitFrame >= LOADANDHIT_FRAMES) hitFrame = LOADANDHIT_FRAMES - 1;
                 DrawTextureEx(player1LoadAndHitFrames[hitFrame],
@@ -649,6 +705,10 @@ int main(int argc, char *argv[]){
                 DrawTextureEx(player1LoadAndHitFrames[p1Frame],
                               (Vector2){p1X, p1Y},
                               2.0f, bgScale * 4.0f, WHITE);
+            } else if (player1move == 2 && player2move == 6) {
+                DrawTextureEx(player1LoadAndHitFrames[p1Frame],
+                              (Vector2){p1X, p1Y},
+                              2.0f, bgScale * 4.0f, WHITE);
             } else if (player1move == 2 && player2move != 1) {
                 DrawTextureEx(player1LoadFrames[p1Frame],
                               (Vector2){p1X, p1Y},
@@ -671,7 +731,8 @@ int main(int argc, char *argv[]){
             }
 
             int p2TotalFrames = 0;
-            if      (cancelMode == 1 && (player1move == 1 || player1move == 6)) p2TotalFrames = 9;
+            if      (cancelMode == 1 && player1move == 1) p2TotalFrames = HIT_FRAMES;
+            else if (cancelMode == 1 && player1move == 6) p2TotalFrames = 9;
             else if (player2move == 6 && player1move == 4) p2TotalFrames = SHOOTANDSHOT_FRAMES;
             else if (player2move == 3 && player1move == 6) p2TotalFrames = BLOCKANDSHOT_FRAMES;
             else if (player2move == 4 && player1move == 6) p2TotalFrames = DEFLECTANDSHOT_FRAMES;
@@ -679,6 +740,7 @@ int main(int argc, char *argv[]){
             else if (player2move == 3) p2TotalFrames = BLOCK_FRAMES;
             else if (player2move == 4) p2TotalFrames = DEFLECT_FRAMES;
             else if (player2move == 1 && player1move != 4) p2TotalFrames = SHOOT_FRAMES;
+            else if (player2move == 2 && player1move == 6) p2TotalFrames = LOADANDHIT_FRAMES;
             else if (player2move == 2 && player1move != 1) p2TotalFrames = LOAD_FRAMES;
             else if (player2move == 2 && player1move == 1) p2TotalFrames = LOADANDHIT_FRAMES;
             else if (player2move == 1 && player1move == 4) p2TotalFrames = DEFLECTHIT_FRAMES;
@@ -686,7 +748,13 @@ int main(int argc, char *argv[]){
             int p2Frame = animFrame;
             if (p2TotalFrames > 0 && p2Frame >= p2TotalFrames) p2Frame = p2TotalFrames - 1;
 
-            if (cancelMode == 1 && (player1move == 1 || player1move == 6)) {
+            if (cancelMode == 1 && player1move == 1) {
+                int hf = p2Frame;
+                if (hf >= HIT_FRAMES) hf = HIT_FRAMES - 1;
+                DrawTextureEx(player2HitFrames[hf],
+                              (Vector2){p2X, p2Y},
+                              2.0f, bgScale * 4.0f, WHITE);
+            } else if (cancelMode == 1 && player1move == 6) {
                 int hitFrame = p2Frame + 5;
                 if (hitFrame >= LOADANDHIT_FRAMES) hitFrame = LOADANDHIT_FRAMES - 1;
                 DrawTextureEx(player2LoadAndHitFrames[hitFrame],
@@ -713,6 +781,10 @@ int main(int argc, char *argv[]){
                               (Vector2){p2X, p2Y},
                               2.0f, bgScale * 4.0f, WHITE);
             } else if (player2move == 2 && player1move == 1) {
+                DrawTextureEx(player2LoadAndHitFrames[p2Frame],
+                              (Vector2){p2X, p2Y},
+                              2.0f, bgScale * 4.0f, WHITE);
+            } else if (player2move == 2 && player1move == 6) {
                 DrawTextureEx(player2LoadAndHitFrames[p2Frame],
                               (Vector2){p2X, p2Y},
                               2.0f, bgScale * 4.0f, WHITE);
@@ -823,8 +895,14 @@ int main(int argc, char *argv[]){
                 } else if (chosenMove == 3 && player1.energy < 1) {
                     inputMessage = "Not enough energy to block.";
                     inputMessageColor = RED;
+                } else if (chosenMove == 3 && !player1.canBlock) {
+                    inputMessage = "Block is on cooldown!";
+                    inputMessageColor = RED;
                 } else if (chosenMove == 4 && player1.energy < 3) {
                     inputMessage = "Not enough energy to deflect.";
+                    inputMessageColor = RED;
+                } else if (chosenMove == 4 && !player1.canDeflect) {
+                    inputMessage = "Deflect is on cooldown!";
                     inputMessageColor = RED;
                 } else if (chosenMove == 6 && (player1.energy < 3 || player1.bullet < 2)) {
                     inputMessage = "Need 3 energy & 2 bullets for Double Shot.";
@@ -1106,6 +1184,8 @@ int main(int argc, char *argv[]){
                     if(player1.energy < 6) {
                         player1.energy++;
                     }
+                    player1.canBlock   = (player1move != 3);
+                    player1.canDeflect = (player1move != 4);
 
                     int round_done = 1;
 
@@ -1127,6 +1207,43 @@ int main(int argc, char *argv[]){
 
         EndDrawing();
     }
+    StopMusicStream(music);
+    if (player2.health <= 0 && player1.health > 0) {
+        PlaySound(winnerSound);
+    } else {
+        PlaySound(loserSound);
+    }
+    double endScreenStart = GetTime();
+    while (!WindowShouldClose() && (GetTime() - endScreenStart) < 5.0) {
+        UpdateMusicStream(music);
+        BeginDrawing();
+        ClearBackground(BLACK);
+        float sw = (float)GetScreenWidth();
+        float sh = (float)GetScreenHeight();
+        if (player2.health <= 0 && player1.health > 0) {
+            float scaleX = sw / (float)youWinTex.width;
+            float scaleY = sh / (float)youWinTex.height;
+            float scale = scaleX < scaleY ? scaleX : scaleY;
+            DrawTextureEx(youWinTex,
+                (Vector2){(sw - youWinTex.width * scale) / 2.0f,
+                          (sh - youWinTex.height * scale) / 2.0f},
+                0.0f, scale, WHITE);
+        } else {
+            float scaleX = sw / (float)youLostTex.width;
+            float scaleY = sh / (float)youLostTex.height;
+            float scale = scaleX < scaleY ? scaleX : scaleY;
+            DrawTextureEx(youLostTex,
+                (Vector2){(sw - youLostTex.width * scale) / 2.0f,
+                          (sh - youLostTex.height * scale) / 2.0f},
+                0.0f, scale, WHITE);
+        }
+        EndDrawing();
+    }
+
+    UnloadTexture(youWinTex);
+    UnloadTexture(youLostTex);
+    UnloadSound(winnerSound);
+    UnloadSound(loserSound);
     UnloadMusicStream(music);
     UnloadSound(blockSound);
     UnloadSound(shootSound);
@@ -1176,6 +1293,12 @@ int main(int argc, char *argv[]){
     }
     for (int i = 0; i < LOADANDHIT_FRAMES; i++) {
         UnloadTexture(player2LoadAndHitFrames[i]);
+    }
+    for (int i = 0; i < HIT_FRAMES; i++) {
+        UnloadTexture(player1HitFrames[i]);
+    }
+    for (int i = 0; i < HIT_FRAMES; i++) {
+        UnloadTexture(player2HitFrames[i]);
     }
     for (int i = 0; i < DOUBLESHOT_FRAMES; i++) {
         UnloadTexture(player1DoubleShotFrames[i]);

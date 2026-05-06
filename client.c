@@ -26,6 +26,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 void die_with_error(char *error_msg){
     printf("%s", error_msg);
@@ -36,6 +37,8 @@ typedef struct{
     int health;
     int energy;
     int bullet;
+    bool canBlock;
+    bool canDeflect;
 } Player;
 
 int recv_int(int sock, int *value){
@@ -84,8 +87,14 @@ static int pick_followup_move(Player *p2) {
         } else if (move == 3 && p2->energy < 1) {
             printf("\nNot enough energy to block.\n\n");
             valid = 0;
+        } else if (move == 3 && !p2->canBlock) {
+            printf("\nBlock is on cooldown!\n\n");
+            valid = 0;
         } else if (move == 4 && p2->energy < 3) {
             printf("\nNot enough energy to deflect.\n\n");
+            valid = 0;
+        } else if (move == 4 && !p2->canDeflect) {
+            printf("\nDeflect is on cooldown!\n\n");
             valid = 0;
         } else if (move == 6 && (p2->energy < 3 || p2->bullet < 2)) {
             printf("\nNot enough energy or bullets for Double Shot.\n\n");
@@ -146,6 +155,8 @@ int main(int argc, char *argv[]){
     player2.health = 5;
     player2.energy = 2;
     player2.bullet = 0;
+    player2.canBlock = true;
+    player2.canDeflect = true;
 
     while(1){
         int valid = 0;
@@ -201,8 +212,18 @@ int main(int argc, char *argv[]){
                 valid = 0;
             }
 
+            if(player2move == 3 && !player2.canBlock){
+                printf("\nBlock is on cooldown!\n\n");
+                valid = 0;
+            }
+
             if(player2move == 4 && player2.energy < 3){
                 printf("\nNot enough energy!\n\n");
+                valid = 0;
+            }
+
+            if(player2move == 4 && !player2.canDeflect){
+                printf("\nDeflect is on cooldown!\n\n");
                 valid = 0;
             }
 
@@ -526,7 +547,7 @@ int main(int argc, char *argv[]){
                             printf("Player 1 got hit!\n\n");
                             player1.health--;
                             break;
-                        case 2:
+                        case 2
                             printf("Player 1 loads!\n");
                             printf("You deflected, nothing happened.\n\n");
                             break;
@@ -583,12 +604,23 @@ int main(int argc, char *argv[]){
             player2.energy++;
         }
 
+        player2.canBlock   = (player2move != 3);
+        player2.canDeflect = (player2move != 4);
+
         int round_done;
         if(recv_int(client_sock, &round_done) < 0){
             die_with_error("Error: recv() Failed.");
         }
         else if(round_done == 2){
             printf("\nGame Over\n");
+            if (player1.health <= 0 && player2.health > 0) {
+                printf("You Win!\n");
+            } else if (player2.health <= 0 && player1.health > 0) {
+                printf("You Lose!\n");
+            } else {
+                printf("Draw!\n");
+            }
+            sleep(5);
             break;
         }
 
