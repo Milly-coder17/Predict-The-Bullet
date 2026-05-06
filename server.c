@@ -584,6 +584,9 @@ int main(int argc, char *argv[]){
                         die_with_error("Error: send() Failed.");
 
                     if (cancelType > 0) {
+                        if (cancelType == 1 || cancelType == 3) {
+                            player1.energy -= 5;
+                        }
                         cancelMode = cancelType;
                         cancelAnimFrame = 0;
                         cancelAnimTimer = 0.0f;
@@ -962,7 +965,6 @@ int main(int argc, char *argv[]){
         if (gameState == STATE_RESOLVE)
         {
             if (cancelMode == 1) {
-                player1.energy -= 5;
                 printf("You cancelled Player 2's move and followed up!\n");
                 switch(player1move) {
                     case 1:
@@ -1016,7 +1018,6 @@ int main(int argc, char *argv[]){
             }
             else {
                 if (cancelMode == 3) {
-                    player1.energy -= 5;
                     cancelMode = 0;
                     printf("Both cancelled! Resolving second moves:\n");
                 }
@@ -1200,6 +1201,18 @@ int main(int argc, char *argv[]){
                     if(send_int(client_sock, round_done) < 0){
                         die_with_error("Error: send() Failed.");
                     }
+
+                    // SYNC player2 health from client
+                    int p2health_sync;
+                    if(recv_int(client_sock, &p2health_sync) >= 0){
+                        player2.health = p2health_sync;
+                    }
+
+                    // SYNC: send our actual health to client for display
+                    if(send_int(client_sock, player1.health) < 0){
+                        die_with_error("Error: send() Failed.");
+                    }
+
                     selectedIndex = 1;
 
                     gameState = STATE_INPUT;

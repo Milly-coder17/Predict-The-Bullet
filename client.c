@@ -547,7 +547,7 @@ int main(int argc, char *argv[]){
                             printf("Player 1 got hit!\n\n");
                             player1.health--;
                             break;
-                        case 2
+                        case 2:
                             printf("Player 1 loads!\n");
                             printf("You deflected, nothing happened.\n\n");
                             break;
@@ -611,7 +611,19 @@ int main(int argc, char *argv[]){
         if(recv_int(client_sock, &round_done) < 0){
             die_with_error("Error: recv() Failed.");
         }
-        else if(round_done == 2){
+
+        // SYNC: send our actual health to server for display
+        if(send_int(client_sock, player2.health) < 0){
+            die_with_error("Error: send() Failed.");
+        }
+
+        // SYNC: receive server's actual health for display
+        int p1health_sync;
+        if(recv_int(client_sock, &p1health_sync) >= 0){
+            player1.health = p1health_sync;
+        }
+
+        if(round_done == 2){
             printf("\nGame Over\n");
             if (player1.health <= 0 && player2.health > 0) {
                 printf("You Win!\n");
