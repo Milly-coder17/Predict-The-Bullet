@@ -154,7 +154,7 @@ int main(int argc, char *argv[]){
     Player player2;
     player2.health = 5;
     player2.energy = 2;
-    player2.bullet = 0;
+    player2.bullet = 1;
     player2.canBlock = true;
     player2.canDeflect = true;
 
