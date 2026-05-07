@@ -157,13 +157,15 @@ int main(int argc, char *argv[]){
     player1.canDeflect = true;
     player2.health = 5;
 
-    InitWindow(1920, 1080, "Predict The Bullet - Server");
-    ToggleFullscreen();
+    InitWindow(1280, 720, "Predict The Bullet - Server");
+    //ToggleFullscreen();
     SetTargetFPS(60);
     InitAudioDevice();
+    Music introMusic = LoadMusicStream("assets/battleintro.wav");
+    SetMusicVolume(introMusic, 0.6f);
     Music music = LoadMusicStream("assets/music.wav");
     SetMusicVolume(music, 0.6f);
-    PlayMusicStream(music);
+    PlayMusicStream(introMusic);
 
     int selectedIndex = 1;
     int player1move = 0;
@@ -328,7 +330,7 @@ int main(int argc, char *argv[]){
     const float INTRO_FRAME_DURATION = 0.05f;
 
     while (introFrame < INTRO_FRAMES) {
-        UpdateMusicStream(music);
+        UpdateMusicStream(introMusic);
         BeginDrawing();
         ClearBackground(BLACK);
         DrawTextureEx(introFrames[introFrame], (Vector2){0, 0}, 0.0f, (float)GetScreenWidth() / 1280.0f, WHITE);
@@ -339,6 +341,9 @@ int main(int argc, char *argv[]){
         }
         EndDrawing();
     }
+    StopMusicStream(introMusic);
+    UnloadMusicStream(introMusic);
+    PlayMusicStream(music);
 
     bool gameOver = true;
     while(gameOver){
@@ -656,6 +661,7 @@ int main(int argc, char *argv[]){
             else if (player1move == 6) p1TotalFrames = DOUBLESHOT_FRAMES;
             else if (player1move == 3) p1TotalFrames = BLOCK_FRAMES;
             else if (player1move == 4) p1TotalFrames = DEFLECT_FRAMES;
+            else if (player1move == 1 && player2move == 6) p1TotalFrames = SHOOTANDSHOT_FRAMES;
             else if (player1move == 1 && player2move != 4) p1TotalFrames = SHOOT_FRAMES;
             else if (player1move == 2 && player2move == 6) p1TotalFrames = LOADANDHIT_FRAMES;
             else if (player1move == 2 && player2move != 1) p1TotalFrames = LOAD_FRAMES;
@@ -691,6 +697,10 @@ int main(int argc, char *argv[]){
                               2.0f, bgScale * 4.0f, WHITE);
             } else if (player1move == 6) {
                 DrawTextureEx(player1DoubleShotFrames[p1Frame],
+                              (Vector2){p1X, p1Y},
+                              2.0f, bgScale * 4.0f, WHITE);
+            } else if (player1move == 1 && player2move == 6) {
+                DrawTextureEx(player1ShootAndShotFrames[p1Frame],
                               (Vector2){p1X, p1Y},
                               2.0f, bgScale * 4.0f, WHITE);
             } else if (player1move == 1 && player2move != 4) {
@@ -735,6 +745,7 @@ int main(int argc, char *argv[]){
             else if (player2move == 6) p2TotalFrames = DOUBLESHOT_FRAMES;
             else if (player2move == 3) p2TotalFrames = BLOCK_FRAMES;
             else if (player2move == 4) p2TotalFrames = DEFLECT_FRAMES;
+            else if (player2move == 1 && player1move == 6) p2TotalFrames = SHOOTANDSHOT_FRAMES;
             else if (player2move == 1 && player1move != 4) p2TotalFrames = SHOOT_FRAMES;
             else if (player2move == 2 && player1move == 6) p2TotalFrames = LOADANDHIT_FRAMES;
             else if (player2move == 2 && player1move != 1) p2TotalFrames = LOAD_FRAMES;
@@ -770,6 +781,10 @@ int main(int argc, char *argv[]){
                               2.0f, bgScale * 4.0f, WHITE);
             } else if (player2move == 6) {
                 DrawTextureEx(player2DoubleShotFrames[p2Frame],
+                              (Vector2){p2X, p2Y},
+                              2.0f, bgScale * 4.0f, WHITE);
+            } else if (player2move == 1 && player1move == 6) {
+                DrawTextureEx(player2ShootAndShotFrames[p2Frame],
                               (Vector2){p2X, p2Y},
                               2.0f, bgScale * 4.0f, WHITE);
             } else if (player2move == 1 && player1move != 4) {
