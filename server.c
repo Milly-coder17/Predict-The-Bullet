@@ -157,8 +157,8 @@ int main(int argc, char *argv[]){
     player1.canDeflect = true;
     player2.health = 5;
 
-    InitWindow(1280, 720, "Predict The Bullet - Server");
-    //ToggleFullscreen();
+    InitWindow(1920, 1080, "Predict The Bullet");
+    ToggleFullscreen();
     SetTargetFPS(60);
     InitAudioDevice();
     Music introMusic = LoadMusicStream("assets/battleintro.wav");
